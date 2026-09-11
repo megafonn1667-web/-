@@ -19,6 +19,8 @@
       if(!role){if(err){err.textContent='Неверный PIN';err.classList.remove('hidden')}return}
       const card=document.querySelector('.rolecard[data-role="'+role+'"]');
       if(card&&typeof window.pickRole==='function')window.pickRole(role,card);
+      const loginView=document.getElementById('loginView');
+      if(loginView && !document.getElementById('login')) loginView.id='login';
       original.call(window);
     };
     btn.onclick=go;
