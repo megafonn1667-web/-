@@ -4,7 +4,7 @@
     if(installed)return true;
     const pin=document.getElementById('pin');
     const btn=document.querySelector('.pinbox .btn.gold');
-    if(!pin||!btn||typeof window.state==='undefined')return false;
+    if(!pin||!btn||typeof state==='undefined')return false;
     const loginView=document.getElementById('loginView');
     if(loginView)loginView.id='login';
     document.querySelectorAll('.roles').forEach(x=>x.style.display='none');
