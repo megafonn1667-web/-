@@ -1,8 +1,6 @@
 name: Direct login fix and deploy
 
-on:
-  push:
-    branches: [main]
+on: push
 
 permissions:
   contents: write
@@ -11,27 +9,27 @@ permissions:
 
 jobs:
   fix-and-deploy:
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Fix login directly in index.html
-        shell: python
+      - name: Patch login directly
+        shell: bash
         run: |
+          python3 - <<'PY'
           from pathlib import Path
           import re
-
-          p = Path("index.html")
-          s = p.read_text(encoding="utf-8")
+          p = Path('index.html')
+          s = p.read_text(encoding='utf-8')
           s = s.replace('<div id="loginView" class="login">', '<div id="login" class="login">')
-
-          new_login = r'''function login(){
+          new_login = '''function login(){
  const p=document.getElementById('pin').value.trim();
  currentWaiter=null;currentKitchen=null;
  const err=document.getElementById('loginErr');
  if(err)err.textContent='';
- if(!/^\d{4}$/.test(p)){if(err)err.textContent='Введите 4-значный PIN';return}
+ if(!/^\\d{4}$/.test(p)){if(err)err.textContent='Введите 4-значный PIN';return}
  const adminMatch=String(state.settings.adminPin)===p;
  const waiterMatches=(state.waiters||[]).filter(x=>x.active!==false&&String(x.pin)===p);
  const kitchenMatches=(state.kitchenStaff||[]).filter(x=>x.active!==false&&String(x.pin)===p);
@@ -40,43 +38,35 @@ jobs:
  if(matches.length>1){if(err)err.textContent='Этот PIN назначен нескольким сотрудникам. Назначьте каждому сотруднику уникальный PIN.';return}
  const role=matches[0];
  if(role==='waiter'){
-   const w=waiterMatches[0];
-   currentRole='waiter';currentWaiter=w;
-   sessionStorage.setItem('sabr_role','waiter');sessionStorage.setItem('sabr_waiter_id',String(w.id));sessionStorage.removeItem('sabr_kitchen_id');
+   const w=waiterMatches[0]; currentRole='waiter'; currentWaiter=w;
+   sessionStorage.setItem('sabr_role','waiter'); sessionStorage.setItem('sabr_waiter_id',String(w.id)); sessionStorage.removeItem('sabr_kitchen_id');
  }else if(role==='kitchen'){
-   const k=kitchenMatches[0];
-   currentRole='kitchen';currentKitchen=k;
+   const k=kitchenMatches[0]; currentRole='kitchen'; currentKitchen=k;
    if(typeof ensureAudio==='function')ensureAudio();
    knownKitchenOrders=new Set(state.orders.map(o=>o.id));
    knownKitchenVersions=new Map(state.orders.map(o=>[o.id,o.updatedAt||o.createdAt]));
-   sessionStorage.setItem('sabr_role','kitchen');sessionStorage.setItem('sabr_kitchen_id',String(k.id));sessionStorage.removeItem('sabr_waiter_id');
+   sessionStorage.setItem('sabr_role','kitchen'); sessionStorage.setItem('sabr_kitchen_id',String(k.id)); sessionStorage.removeItem('sabr_waiter_id');
  }else{
    currentRole='admin';
-   sessionStorage.setItem('sabr_role','admin');sessionStorage.removeItem('sabr_waiter_id');sessionStorage.removeItem('sabr_kitchen_id');
+   sessionStorage.setItem('sabr_role','admin'); sessionStorage.removeItem('sabr_waiter_id'); sessionStorage.removeItem('sabr_kitchen_id');
  }
  document.getElementById('pin').value='';
  if(typeof setupRole==='function')setupRole();
 }'''
-
-          pattern = r"function login\(\)\{.*?\nfunction logout\(\)\{"
-          replacement = new_login + "\nfunction logout(){"
-          s, n = re.subn(pattern, replacement, s, count=1, flags=re.S)
+          s, n = re.subn(r"function login\(\)\{.*?\nfunction logout\(\)", new_login + '\nfunction logout()', s, count=1, flags=re.S)
           if n != 1:
-              raise SystemExit("login function pattern not found")
-          p.write_text(s, encoding="utf-8")
-          print("login patched")
+              raise SystemExit('login function not found')
+          p.write_text(s, encoding='utf-8')
+          PY
 
-      - name: Commit direct fix to main
+      - name: Commit source fix
         shell: bash
         run: |
-          if git diff --quiet -- index.html; then
-            echo "No source changes needed"
-            exit 0
-          fi
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if git diff --quiet -- index.html; then exit 0; fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add index.html
-          git commit -m "Direct login fix [login-fix]"
+          git commit -m 'Direct login fix [login-fix]'
           git push
 
       - name: Configure Pages
