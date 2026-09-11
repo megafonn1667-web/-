@@ -37,8 +37,8 @@ button,input,select,textarea{font:inherit}button{cursor:pointer}.hidden{display:
 <div id="loginView" class="login">
   <div class="loginbox glass">
     <div class="brand"><div class="logo"><svg viewBox="0 0 40 40" fill="none"><path d="M20 5c4 5 10 8 10 15a10 10 0 1 1-20 0c0-7 6-10 10-15Z" stroke="currentColor" stroke-width="1.7"/><path d="M14 25c3-1 7-1 12 0M16 29c2-1 6-1 8 0" stroke="currentColor" stroke-width="1.4"/></svg></div><div><h1>SABR</h1><small>Управление заведением</small></div></div>
-    <div class="hero" style="margin-top:16px"><h2>Добро пожаловать</h2><p>Выберите кабинет и войдите по личному PIN-коду.</p></div>
-    <div class="roles">
+    <div class="hero" style="margin-top:16px"><h2>Добро пожаловать</h2><p>Введите личный PIN-код — программа автоматически определит ваш профиль.</p></div>
+    <div class="roles" style="display:none">
       <button class="rolecard" data-role="admin" onclick="pickRole('admin',this)"><strong>Администратор</strong><span>Полный доступ: касса, заказы, персонал, меню, отчёты и настройки</span></button>
       <button class="rolecard" data-role="waiter" onclick="pickRole('waiter',this)"><strong>Официант</strong><span>Вход по личному PIN, приём заказа, передача на кухню и оплата</span></button>
       <button class="rolecard" data-role="kitchen" onclick="pickRole('kitchen',this)"><strong>Кухня</strong><span>Личный PIN, новые заказы, приготовление и статус «готово»</span></button>
@@ -93,9 +93,10 @@ function toast(t){const x=document.getElementById('toast');x.textContent=t;x.cla
 function pickRole(r,el){chosenRole=r;document.querySelectorAll('.rolecard').forEach(x=>x.classList.remove('sel'));el.classList.add('sel');document.getElementById('pin').focus()}
 function login(){
  const p=document.getElementById('pin').value.trim();currentWaiter=null;currentKitchen=null;
- if(chosenRole==='waiter'){const w=state.waiters.find(x=>x.active!==false&&String(x.pin)===p);if(!w)return err('Неверный PIN официанта');currentWaiter=w;currentRole='waiter'}
- else if(chosenRole==='kitchen'){const k=state.kitchenStaff.find(x=>x.active!==false&&String(x.pin)===p);if(!k)return err('Неверный PIN кухни');currentKitchen=k;currentRole='kitchen'}
- else {if(p!==String(state.settings.adminPin))return err('Неверный PIN администратора');currentRole='admin'}
+ const wm=state.waiters.filter(x=>x.active!==false&&String(x.pin)===p),km=state.kitchenStaff.filter(x=>x.active!==false&&String(x.pin)===p),am=String(state.settings.adminPin)===p;
+ const roles=(am?1:0)+wm.length+km.length;
+ if(roles!==1)return err(roles>1?'PIN назначен нескольким сотрудникам. Обратитесь к администратору':'Неверный PIN');
+ if(am)currentRole='admin'; else if(wm.length){currentRole='waiter';currentWaiter=wm[0]} else {currentRole='kitchen';currentKitchen=km[0]}
  document.getElementById('loginErr').classList.add('hidden');document.getElementById('loginView').classList.add('hidden');document.getElementById('appView').classList.remove('hidden');setupApp();
 }
 function err(t){const e=document.getElementById('loginErr');e.textContent=t;e.classList.remove('hidden')}
