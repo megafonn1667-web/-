@@ -1,0 +1,30 @@
+name: Fix login profiles
+on:
+  push:
+    branches: [main]
+permissions:
+  contents: write
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Patch login
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('index.html')
+          s=p.read_text(encoding='utf-8')
+          s=s.replace('<div class="roles">','<div class="roles" style="display:none">',1)
+          old="function login(){\n const p=document.getElementById('pin').value.trim();currentWaiter=null;currentKitchen=null;\n if(chosenRole==='waiter'){const w=state.waiters.find(x=>x.active!==false&&String(x.pin)===p);if(!w)return err('Неверный PIN официанта');currentWaiter=w;currentRole='waiter'}\n else if(chosenRole==='kitchen'){const k=state.kitchenStaff.find(x=>x.active!==false&&String(x.pin)===p);if(!k)return err('Неверный PIN кухни');currentKitchen=k;currentRole='kitchen'}\n else {if(p!==String(state.settings.adminPin))return err('Неверный PIN администратора');currentRole='admin'}"
+          new="function login(){\n const p=document.getElementById('pin').value.trim();currentWaiter=null;currentKitchen=null;\n const wm=state.waiters.filter(x=>x.active!==false&&String(x.pin)===p),km=state.kitchenStaff.filter(x=>x.active!==false&&String(x.pin)===p),am=String(state.settings.adminPin)===p;\n const roles=(am?1:0)+wm.length+km.length;\n if(roles!==1)return err(roles>1?'PIN назначен нескольким сотрудникам. Обратитесь к администратору':'Неверный PIN');\n if(am)currentRole='admin'; else if(wm.length){currentRole='waiter';currentWaiter=wm[0]} else {currentRole='kitchen';currentKitchen=km[0]}"
+          if old not in s: raise SystemExit('login block not found')
+          s=s.replace(old,new,1)
+          s=s.replace('Выберите кабинет и войдите по личному PIN-коду.','Введите личный PIN-код — программа автоматически определит ваш профиль.',1)
+          p.write_text(s,encoding='utf-8')
+          PY
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add index.html
+          git diff --cached --quiet || git commit -m "Fix automatic profile login"
+          git push
